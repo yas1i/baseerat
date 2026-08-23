@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from contextlib import contextmanager
 from pathlib import Path
 
 from baseerat.auditor import get_auditor
@@ -37,10 +38,21 @@ def _fmt(x: float) -> str:
     return "n/a" if isinstance(x, float) and math.isnan(x) else f"{x:.2f}"
 
 
-def run(tasks_path: str, auditor_name: str, out_path: str | None) -> dict:
+def _build_env(env_name: str):
+    if env_name == "sim":
+        return SimulatedEnvironment(), None
+    if env_name == "playwright":
+        from baseerat.playwright_env import PlaywrightEnvironment
+        env = PlaywrightEnvironment()
+        return env, env.session
+    raise ValueError(f"unknown env: {env_name!r} (choices: sim, playwright)")
+
+
+def run(tasks_path: str, auditor_name: str, out_path: str | None,
+        env_name: str = "sim") -> dict:
     tasks = load_tasks(tasks_path)
     tasks_by_id = {t.task_id: t for t in tasks}
-    env = SimulatedEnvironment()
+    env, session_factory = _build_env(env_name)
 
     try:
         auditor = get_auditor(auditor_name)
@@ -55,13 +67,23 @@ def run(tasks_path: str, auditor_name: str, out_path: str | None) -> dict:
 
     runs = []
     results = []
-    for task in tasks:
-        for condition in Condition:
-            r = env.run(task, condition)
-            runs.append(r)
-            for channel in Channel:
-                view = channel_view(r, channel)
-                results.append(auditor.audit(task, view, channel, condition))
+
+    @contextmanager
+    def _maybe_session():
+        if session_factory is None:
+            yield
+        else:
+            with session_factory():
+                yield
+
+    with _maybe_session():
+        for task in tasks:
+            for condition in Condition:
+                r = env.run(task, condition)
+                runs.append(r)
+                for channel in Channel:
+                    view = channel_view(r, channel)
+                    results.append(auditor.audit(task, view, channel, condition))
 
     fidelity = fidelity_by_condition(runs, tasks_by_id)
     det_nv = detectability(results, Channel.NON_VISUAL)
@@ -70,6 +92,7 @@ def run(tasks_path: str, auditor_name: str, out_path: str | None) -> dict:
 
     report = {
         "auditor": auditor_name,
+        "env": env_name,
         "n_tasks": len(tasks),
         "n_runs": len(runs),
         "self_report_fidelity": fidelity,
@@ -108,7 +131,7 @@ def run(tasks_path: str, auditor_name: str, out_path: str | None) -> dict:
 def _print_report(r: dict) -> None:
     print()
     print("=" * 60)
-    print(f"  BASEERAT  ·  auditor: {r['auditor']}  ·  "
+    print(f"  BASEERAT  ·  env: {r['env']}  ·  auditor: {r['auditor']}  ·  "
           f"{r['n_tasks']} tasks, {r['n_runs']} runs")
     print("=" * 60)
     print("\nSelf-report fidelity (agent honesty vs ground truth):")
@@ -137,10 +160,12 @@ def main() -> None:
     ap.add_argument("--tasks", default="tasks/seed.json")
     ap.add_argument("--auditor", default="heuristic",
                     choices=["heuristic", "claude"])
+    ap.add_argument("--env", default="sim", choices=["sim", "playwright"],
+                    help="sim = deterministic simulator; playwright = live browser rig")
     ap.add_argument("--out", default=None,
                     help="write per-audit JSONL and a summary JSON here")
     args = ap.parse_args()
-    run(args.tasks, args.auditor, args.out)
+    run(args.tasks, args.auditor, args.out, args.env)
 
 
 if __name__ == "__main__":
