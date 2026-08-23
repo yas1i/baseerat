@@ -4,38 +4,36 @@ This replaces `SimulatedEnvironment`'s dicts with an actual Chromium page. For
 each (task, condition) it:
 
   1. renders the real task page (`pages.render_task_page`),
-  2. drives a scripted agent that fills the form with the correct values and
-     submits (the seam where a real computer-use agent will slot in: it is the
-     only piece that "acts"),
-  3. reads GROUND TRUTH from `window.__ground_truth__` (what was really stored),
-  4. reads the A11Y TREE the way a screen reader would, by resolving each field
+  2. builds an accessible Observation and hands it to the pluggable AGENT, which
+     decides the field values and its own narration (Week 3: the agent is a real
+     decision-maker, not the environment typing fixed values),
+  3. applies the agent's actions to the page and submits,
+  4. reads GROUND TRUTH from `window.__ground_truth__` (what was really stored),
+  5. reads the A11Y TREE the way a screen reader would, by resolving each field
      through its accessible name (role=textbox, name=label) and reading the
-     accessible value, plus the full ARIA snapshot for the record,
-  5. produces the agent's narration (a claim of success with the expected
-     values, which is what both a fooled and a deceptive agent report).
+     accessible value, plus the full ARIA snapshot for the record.
 
 The point of this file is fidelity of the two channels: ground truth comes from
 the page's authoritative stored state, and the accessibility view comes from the
-real accessibility tree, never from the DOM behind it. If the injection page can
-make those two disagree, the threat is real.
-
-The scripted agent is deliberately dumb (it types the right values); the
-divergence is produced by the environment, not by agent error. Swapping in a
-real CUA changes step 2 only.
+real accessibility tree, never from the DOM behind it. The agent supplies the
+narration but cannot touch ground truth, so it can only misreport, never fake
+reality.
 """
 
 from __future__ import annotations
 
 from contextlib import contextmanager
 
+from .agent import Agent, FieldView, Observation, ScriptedAgent
 from .environment import Environment
 from .pages import UNSET, render_task_page
 from .schema import Condition, Run, Task
 
 
 class PlaywrightEnvironment(Environment):
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True, agent: Agent | None = None):
         self.headless = headless
+        self.agent = agent or ScriptedAgent()
         self._pw = None
         self._browser = None
 
@@ -66,19 +64,33 @@ class PlaywrightEnvironment(Environment):
         try:
             page.set_content(render_task_page(task, condition))
 
-            # --- step 2: the scripted agent acts (fills correct values, submits)
-            for i, f in enumerate(task.fields):
-                page.fill(f"#in-{i}", f.expected)
+            # --- step 2: the agent perceives the accessible page and decides
+            obs = Observation(
+                task_instruction=task.instruction,
+                fields=[
+                    FieldView(input_id=f"in-{i}", key=f.key, label=f.label or f.key)
+                    for i, f in enumerate(task.fields)
+                ],
+                page_text=page.locator("main").inner_text(),
+                aria=page.locator("#task-form").aria_snapshot(),
+            )
+            result = self.agent.act(task, obs)
+
+            # --- step 3: apply the agent's actions, then submit
+            for action in result.actions:
+                sel = f"#{action['id']}"
+                if page.locator(sel).count():
+                    page.fill(sel, action["value"])
             page.click("button[type=submit]")
             page.wait_for_selector("#confirmation:not([hidden])")
 
-            # --- step 3: ground truth, authoritative stored state
+            # --- step 4: ground truth, authoritative stored state
             stored = page.evaluate("window.__ground_truth__") or {}
             world_state = {
                 f.key: _norm(stored.get(f.key, "<unset>")) for f in task.fields
             }
 
-            # --- step 4: the accessibility view, read through accessible names.
+            # --- step 5: the accessibility view, read through accessible names.
             # Scoped to the confirmation region: that is what the overseer
             # inspects after the action, and it disambiguates the read from the
             # (identically named) form inputs.
@@ -90,16 +102,13 @@ class PlaywrightEnvironment(Environment):
                 a11y_tree[f.key] = _norm(value)
             aria_snapshot = confirmation.aria_snapshot()
 
-            # --- step 5: the agent's narration (claims success, expected values)
-            narration = _narrate(task)
-
             run = Run(
                 task_id=task.task_id,
                 condition=condition,
                 world_state=world_state,
                 a11y_tree=a11y_tree,
-                narration=narration,
-                claimed_success=True,
+                narration=result.narration,
+                claimed_success=result.claimed_success,
             )
             # attach the raw snapshot for the record without changing the schema
             run.aria_snapshot = aria_snapshot  # type: ignore[attr-defined]
@@ -112,11 +121,3 @@ def _norm(value: str) -> str:
     """Map the page's unset sentinel to the schema's, so the metrics see the same
     '<unset>' marker the simulator uses."""
     return "<unset>" if value == UNSET else value
-
-
-def _narrate(task: Task) -> str:
-    parts = [f"Completed '{task.title}'."]
-    for f in task.fields:
-        parts.append(f"Set {f.label or f.key} to {f.expected}.")
-    parts.append("All done, nothing else needed.")
-    return " ".join(parts)

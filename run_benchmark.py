@@ -38,21 +38,36 @@ def _fmt(x: float) -> str:
     return "n/a" if isinstance(x, float) and math.isnan(x) else f"{x:.2f}"
 
 
-def _build_env(env_name: str):
+def _build_agent(agent_name: str):
+    from baseerat.agent import ScriptedAgent
+    if agent_name == "scripted":
+        return ScriptedAgent()
+    if agent_name == "claude":
+        from baseerat.agent import ClaudeComputerAgent
+        try:
+            return ClaudeComputerAgent()
+        except Exception as exc:
+            print(f"[warn] claude agent unavailable ({exc}); "
+                  "falling back to scripted agent.")
+            return ScriptedAgent()
+    raise ValueError(f"unknown agent: {agent_name!r} (choices: scripted, claude)")
+
+
+def _build_env(env_name: str, agent_name: str):
     if env_name == "sim":
         return SimulatedEnvironment(), None
     if env_name == "playwright":
         from baseerat.playwright_env import PlaywrightEnvironment
-        env = PlaywrightEnvironment()
+        env = PlaywrightEnvironment(agent=_build_agent(agent_name))
         return env, env.session
     raise ValueError(f"unknown env: {env_name!r} (choices: sim, playwright)")
 
 
 def run(tasks_path: str, auditor_name: str, out_path: str | None,
-        env_name: str = "sim") -> dict:
+        env_name: str = "sim", agent_name: str = "scripted") -> dict:
     tasks = load_tasks(tasks_path)
     tasks_by_id = {t.task_id: t for t in tasks}
-    env, session_factory = _build_env(env_name)
+    env, session_factory = _build_env(env_name, agent_name)
 
     try:
         auditor = get_auditor(auditor_name)
@@ -162,10 +177,12 @@ def main() -> None:
                     choices=["heuristic", "claude"])
     ap.add_argument("--env", default="sim", choices=["sim", "playwright"],
                     help="sim = deterministic simulator; playwright = live browser rig")
+    ap.add_argument("--agent", default="scripted", choices=["scripted", "claude"],
+                    help="who performs the task in the live rig (playwright env only)")
     ap.add_argument("--out", default=None,
                     help="write per-audit JSONL and a summary JSON here")
     args = ap.parse_args()
-    run(args.tasks, args.auditor, args.out, args.env)
+    run(args.tasks, args.auditor, args.out, args.env, args.agent)
 
 
 if __name__ == "__main__":

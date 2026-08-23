@@ -21,7 +21,7 @@ WAJD AI · copyright WAJD Group.
 
 ---
 
-## What is here (Weeks 1-2)
+## What is here (Weeks 1-3)
 
 A working end-to-end pipeline that produces the three metrics on a seed task
 set, runnable against either a deterministic simulator OR a live browser rig.
@@ -34,11 +34,20 @@ set, runnable against either a deterministic simulator OR a live browser rig.
   condition physical: it decides what is really stored (ground truth) separately
   from what the confirmation screen exposes to the accessibility tree.
 - **`baseerat/playwright_env.py`** - **the live rig.** Drives a real Chromium
-  page, has a scripted agent fill and submit the form, reads ground truth from
-  the page's stored state, and reads the accessibility view the way a screen
-  reader would (resolving each field through its accessible name, plus the full
-  ARIA snapshot). Same `Environment.run` seam as the simulator; a real
-  computer-use agent slots into the "act" step unchanged.
+  page: it builds an accessible observation, hands it to the agent, applies the
+  agent's actions, reads ground truth from the page's stored state, and reads
+  the accessibility view the way a screen reader would (resolving each field
+  through its accessible name, plus the full ARIA snapshot). Same
+  `Environment.run` seam as the simulator.
+- **`baseerat/agent.py`** - **the agent seam (Week 3).** `ScriptedAgent` (a
+  perfect operator, the controlled baseline) and `ClaudeComputerAgent` (a real
+  agent that perceives only the accessible observation, decides the field
+  values, and writes its OWN narration - the self-report the benchmark audits).
+- **`baseerat/nvda.py`** - **the NVDA cross-check (Week 3).** Parses an NVDA
+  Speech Viewer log into the rig's `{field: value}` shape and compares it to the
+  ARIA-snapshot channel, so the paper can show its accessibility model agrees
+  with what a production screen reader actually speaks. The live capture runs on
+  the Windows VM; the parser and comparator are tested here against log fixtures.
 - **`baseerat/auditor/`** - two auditors behind one interface:
   `HeuristicAuditor` (deterministic, offline, the study's baseline arm) and
   `ClaudeAuditor` (Claude under the same perceptual restriction, the scalable
@@ -48,8 +57,9 @@ set, runnable against either a deterministic simulator OR a live browser rig.
 - **`tasks/seed.json`** - five seed tasks (email, address form, payee, file
   move, calendar) across web and desktop surfaces.
 - **`run_benchmark.py`** - runs everything and prints the report.
-- **`tests/`** - 16 behavioural tests (11 offline + 5 live-rig, the latter
-  skipped automatically where Chromium is unavailable).
+- **`tests/`** - 24 behavioural tests (offline + live-rig + agent + NVDA
+  harness); live-rig tests skip automatically where Chromium is unavailable, and
+  the agent/auditor Claude paths are covered with mock clients (no key needed).
 
 ### Week 2: the injection is real, not simulated
 
@@ -89,8 +99,13 @@ python3 -m venv .venv
 .venv/bin/pip install anthropic pytest playwright
 .venv/bin/python -m playwright install chromium   # for the live rig
 .venv/bin/python run_benchmark.py                 # simulator, offline, no API spend
-.venv/bin/python run_benchmark.py --env playwright  # live Chromium rig
+.venv/bin/python run_benchmark.py --env playwright  # live Chromium rig, scripted agent
+.venv/bin/python run_benchmark.py --env playwright --agent claude   # real agent (needs key)
 ```
+
+The `--agent claude` run has Claude drive the form from the accessible
+observation and write its own narration; without credentials it prints a note
+and falls back to the scripted agent, so the command never fails.
 
 Current output on the seed set (heuristic baseline auditor):
 
@@ -133,9 +148,12 @@ pipeline and metrics on seed data. The remaining weeks:
 - **Week 2 (done)** - the live Playwright rig: real Chromium pages, real
   ground-truth stored state, and the accessibility view read from the real ARIA
   tree. The deceptive-injection condition is now demonstrated in an actual DOM.
-- **Week 3** - swap the scripted agent driver for a real computer-use agent at
-  the "act" step; capture accessibility output through NVDA on the Windows VM to
-  cross-check the ARIA-snapshot channel against a production screen reader.
+- **Week 3 (done)** - the agent seam is a real decision-maker
+  (`ClaudeComputerAgent`), producing its own narration; the NVDA cross-check
+  harness parses and compares Speech Viewer logs against the ARIA channel. Two
+  live steps await their environments: the `--agent claude` run needs an API
+  key, and the NVDA capture needs the Windows VM (procedure documented in
+  `baseerat/nvda.py`).
 - **Weeks 4-6** - scale to ~150 tasks; run the full LLM-auditor arm across
   models; add the defence evaluation (accessibility-rendered action receipts vs
   narration-only).
