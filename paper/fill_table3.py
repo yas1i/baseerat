@@ -36,6 +36,7 @@ sys.path.insert(0, str(ROOT))
 from run_benchmark import run  # noqa: E402
 
 TEX = ROOT / "paper" / "baseerat.tex"
+ACMART = ROOT / "paper" / "baseerat-acmart.tex"   # TACCESS submission format
 HTML = ROOT / "paper" / "baseerat.html"
 
 TEX_START = "% TABLE3-ROWS-START"
@@ -48,13 +49,39 @@ def _fmt(x: float) -> str:
     return "n/a" if isinstance(x, float) and math.isnan(x) else f"{x:.2f}"
 
 
+_AUTH_HINT = (
+    "\n[auth] The API key was rejected (401 invalid x-api-key). The key that IS "
+    "set is not a valid one. Check that ANTHROPIC_API_KEY:\n"
+    "  - is a real key that starts with 'sk-ant-'\n"
+    "  - has no surrounding quotes, spaces, or a trailing '...' placeholder\n"
+    "  - is active (not revoked) and has credit\n"
+    "Test it directly:\n"
+    "  curl -s https://api.anthropic.com/v1/models "
+    "-H \"x-api-key: $ANTHROPIC_API_KEY\" -H \"anthropic-version: 2023-06-01\" | head\n"
+)
+
+
+def _is_auth_error(exc: Exception) -> bool:
+    s = f"{type(exc).__name__} {exc}".lower()
+    return "authentication" in s or "401" in s or "x-api-key" in s
+
+
 def _sweep(models: list[str], tasks_path: str):
     rows = []
     for model in models:
         print(f"\n>>> auditor model: {model}")
-        report = run(tasks_path, "claude", None, "sim", "scripted", model)
+        try:
+            report = run(tasks_path, "claude", None, "sim", "scripted", model)
+        except Exception as exc:  # noqa: BLE001
+            if _is_auth_error(exc):
+                print(_AUTH_HINT)
+                print("[abort] Key rejected, so no model can run. Table 3 left "
+                      "pending. Nothing was fabricated. Fix the key and re-run.")
+                return []
+            print(f"[skip] {model}: {type(exc).__name__}: {exc}. Row left pending.")
+            continue
         if report["auditor"] != "claude" or report.get("model") != model:
-            print(f"[skip] {model}: auditor did not run (no credentials?). "
+            print(f"[skip] {model}: auditor fell back (no credentials?). "
                   "Leaving this row pending.")
             continue
         d = report["defence"]
@@ -124,9 +151,12 @@ def main() -> None:
               "fabricated. Set ANTHROPIC_API_KEY and re-run.")
         return
 
-    tex = TEX.read_text(encoding="utf-8")
-    TEX.write_text(_replace_block(tex, TEX_START, TEX_END, _tex_rows(rows)),
-                   encoding="utf-8")
+    for tex_path in (TEX, ACMART):
+        if tex_path.exists():
+            tex = tex_path.read_text(encoding="utf-8")
+            tex_path.write_text(
+                _replace_block(tex, TEX_START, TEX_END, _tex_rows(rows)),
+                encoding="utf-8")
     html = HTML.read_text(encoding="utf-8")
     # Rebuild the HTML block boundary to include the closing marker precisely.
     html_new = re.sub(
@@ -150,8 +180,8 @@ def main() -> None:
                f"Real measured results for: {models}.")
         try:
             subprocess.run(["git", "-C", str(ROOT), "add",
-                            "paper/baseerat.tex", "paper/baseerat.html",
-                            "paper/baseerat.pdf"], check=True)
+                            "paper/baseerat.tex", "paper/baseerat-acmart.tex",
+                            "paper/baseerat.html", "paper/baseerat.pdf"], check=True)
             subprocess.run(["git", "-C", str(ROOT),
                             "-c", "user.name=WAJD AI",
                             "-c", "user.email=yasir.musawar@gmail.com",
