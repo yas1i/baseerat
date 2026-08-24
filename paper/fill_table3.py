@@ -113,6 +113,8 @@ def main() -> None:
     ap.add_argument("--models", nargs="+",
                     default=["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"])
     ap.add_argument("--tasks", default="tasks/generated.json")
+    ap.add_argument("--commit-push", action="store_true",
+                    help="after a successful fill, commit (as WAJD AI) and push dev")
     args = ap.parse_args()
 
     rows = _sweep(args.models, str(ROOT / args.tasks))
@@ -134,13 +136,33 @@ def main() -> None:
 
     print(f"\nFilled Table 3 with {len(rows)} real model row(s) in "
           f"{TEX.name} and {HTML.name}.")
+    import subprocess
     try:
-        import subprocess
         subprocess.run([sys.executable, str(ROOT / "paper" / "build_pdf.py")],
                        check=True)
     except Exception as exc:  # noqa: BLE001
         print(f"[note] PDF rebuild skipped/failed ({exc}); run "
               "python paper/build_pdf.py manually.")
+
+    if args.commit_push:
+        models = ", ".join(r["model"] for r in rows)
+        msg = ("Fill Table 3 from the language-model auditor sweep\n\n"
+               f"Real measured results for: {models}.")
+        try:
+            subprocess.run(["git", "-C", str(ROOT), "add",
+                            "paper/baseerat.tex", "paper/baseerat.html",
+                            "paper/baseerat.pdf"], check=True)
+            subprocess.run(["git", "-C", str(ROOT),
+                            "-c", "user.name=WAJD AI",
+                            "-c", "user.email=yasir.musawar@gmail.com",
+                            "commit", "-q", "-m", msg], check=True)
+            subprocess.run(["git", "-C", str(ROOT), "push", "origin", "dev"],
+                           check=True)
+            print("Committed and pushed to origin/dev.")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[note] commit/push failed ({exc}); commit manually.")
+    print("\nNext: upload the rebuilt paper/baseerat.pdf as a new VERSION of the "
+          "Zenodo record (preserves the DOI).")
 
 
 if __name__ == "__main__":
