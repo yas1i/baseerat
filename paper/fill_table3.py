@@ -142,6 +142,8 @@ def main() -> None:
     ap.add_argument("--models", nargs="+",
                     default=["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"])
     ap.add_argument("--tasks", default="tasks/generated.json")
+    ap.add_argument("--limit", type=int, default=None,
+                    help="sweep only the first N tasks (fast calibration pass)")
     ap.add_argument("--commit-push", action="store_true",
                     help="after a successful fill, commit (as WAJD AI) and push dev")
     args = ap.parse_args()
@@ -165,7 +167,18 @@ def main() -> None:
               "in THIS terminal tab (export ANTHROPIC_API_KEY='sk-ant-...') and "
               "re-run. An export in another tab does not carry over.")
 
-    rows = _sweep(args.models, str(ROOT / args.tasks))
+    tasks_path = str(ROOT / args.tasks)
+    if args.limit:
+        import json
+        data = json.loads(Path(tasks_path).read_text(encoding="utf-8"))
+        subset = data[: args.limit]
+        (ROOT / "results").mkdir(exist_ok=True)
+        tasks_path = str(ROOT / "results" / "_subset_tasks.json")
+        Path(tasks_path).write_text(json.dumps(subset), encoding="utf-8")
+        print(f"[limit] sweeping the first {len(subset)} tasks only "
+              "(calibration pass; Table 3 numbers will say so)")
+
+    rows = _sweep(args.models, tasks_path)
     if not rows:
         print("\nNo model rows were produced (no credentials, or all runs fell "
               "back to the heuristic). Table 3 left pending. Nothing was "
