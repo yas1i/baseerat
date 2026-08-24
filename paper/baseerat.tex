@@ -1,0 +1,526 @@
+\documentclass[11pt]{article}
+
+% Baseerat: measuring computer-use agent oversight without sight.
+% arXiv preprint source. Compiles with a standard TeX distribution
+% (pdflatex baseerat.tex, twice for references). No exotic packages.
+% House style: UK English throughout; no em or en dashes in prose.
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+
+\newcommand{\gap}{oversight parity gap}
+\newcommand{\pending}{\textcolor{gray}{\small (pending)}}
+
+\title{\textbf{Baseerat: Measuring the Oversight Gap When a\\
+Computer-Use Agent's Overseer Cannot See the Screen}}
+
+\author{[Author name]\\ WAJD AI\\ \texttt{baseerat@wajd.co.uk}}
+
+\date{Preprint. \today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Safety benchmarks for computer-use agents evaluate an agent's behaviour under
+the tacit assumption that the human overseer can see the screen. For the roughly
+forty million people who operate a computer through a screen reader, that
+assumption does not hold: the only account of what an agent did arrives through
+the agent's narration and the post-hoc accessibility tree. A growing body of
+work shows that an agent's own account of its actions is unreliable, with claimed
+success exceeding actual success by large margins. We ask a question these two
+literatures leave open: when the only oversight channel is the accessible one,
+how much of an agent failure, and in particular an adversarially concealed one,
+can a non-visual overseer still detect? We introduce \emph{Baseerat}, a benchmark
+that pairs each task with a matched sighted control and measures the
+\emph{\gap}: the detection rate a sighted overseer achieves on a diverged agent
+run minus the rate an overseer restricted to the accessible channel achieves on
+the same run. Baseerat runs tasks in a real browser under three conditions
+(clean, silent failure, and a deceptive indirect injection that poisons the
+accessibility tree in step with the agent's narration), and audits every run
+through both channels. Using a deterministic reference auditor over a
+150-task corpus, we establish the benchmark's construct validity and report a
+\gap{} of 0.50, concentrated entirely in the deceptive-injection condition. We
+then evaluate a defence, trusted action receipts, and show it closes the gap to
+zero. We release the benchmark, the live rig, the corpus, and the reference
+results, and specify the protocol for the language-model and human
+expert-auditor arms.
+\end{abstract}
+
+\section{Introduction}
+
+Computer-use agents now act on real interfaces on a person's behalf: they fill
+forms, send messages, move money, and change settings. The safety of these
+agents is increasingly benchmarked, but the benchmarks share an unstated premise.
+When they score whether an agent completed a task correctly, resisted a prompt
+injection, or avoided a harmful action, the ground truth is read from the screen,
+and the implicit overseer who would catch a failure in deployment is assumed to
+be able to read the screen too.
+
+For a blind screen-reader user that premise fails. The overseer does not see the
+result; they hear the agent's narration and, if they inspect the outcome, they
+read whatever the accessibility tree exposes. The oversight channel collapses
+onto the agent's own account of what it did. This would be a manageable
+limitation if that account were reliable. It is not. Recent work characterises
+\emph{false success}, in which agents produce confident closure statements over
+tasks that in fact failed, and \emph{outcome hallucination}, in which an agent
+claims completion despite evidence to the contrary, with claimed-to-actual
+success ratios reported as high as $5.3\times$.
+
+Put together, these two observations imply a vulnerability that neither
+literature measures. If the accessible channel is the whole of a blind user's
+oversight, and that channel carries an unreliable self-report, then the safety of
+the agent for that user reduces to the fidelity of the self-report, and to
+whether the accessible channel is rich enough to reveal a discrepancy when the
+self-report is wrong. Nobody has measured either quantity, and the adversarial
+case is worse than the accidental one. In an indirect prompt injection the
+attacker controls page content; nothing prevents the injection from also
+instructing the agent to narrate a clean, benign account of a hijacked action, so
+that the attack and its cover story travel down the very channel the blind user
+depends on. A sighted overseer sees the true result regardless; a non-visual
+overseer sees only the cover story.
+
+We make this precise with a benchmark. Our contributions are:
+
+\begin{enumerate}
+\item \textbf{A problem formulation and a metric.} We frame agent oversight as a
+detection task performed over a restricted perceptual channel, and define the
+\emph{\gap}: the difference in divergence-detection rate between a visually
+unrestricted overseer and one restricted to the accessible channel, over the same
+runs. We further define \emph{self-report fidelity} and \emph{non-visual
+detectability}.
+
+\item \textbf{A live benchmark, Baseerat.} Tasks run in a real browser under
+three conditions. Crucially, the deceptive-injection condition is constructed in
+an actual document object model so that the accessibility tree exposes a benign
+value while the committed state is hijacked. We show this divergence is not a
+modelling artefact but is realisable and reads directly from a production
+accessibility snapshot.
+
+\item \textbf{Reference results and construct validity.} A deterministic
+reference auditor over a 150-task corpus (six task domains, four injection
+archetypes) yields a \gap{} of 0.50, entirely within the deceptive-injection
+condition, with no false alarms on clean runs.
+
+\item \textbf{A defence and its evaluation.} We evaluate trusted action receipts,
+a machine-verified and accessibly-rendered record of what was actually committed,
+independent of the page. Receipts restore non-visual detection from 0.50 to 1.00
+and close the \gap{} to zero.
+
+\item \textbf{An open protocol for the auditor arms.} We release the rig and
+specify the language-model auditor sweep and the human expert-auditor study that
+populate the remaining evaluation.
+\end{enumerate}
+
+The name \emph{Baseerat} (from the Arabic \emph{baseerah}, ``inner sight'',
+discernment) marks the point: the question is not whether an overseer has eyes,
+but whether the channel they are given carries enough to discern a failure.
+
+\section{Related work and positioning}
+
+Baseerat sits at the intersection of three lines of work, each of which supplies
+one ingredient and none of which occupies the joint question.
+
+\paragraph{Safety benchmarks for computer-use agents.} OS-Harm evaluates
+computer-use agents across deliberate misuse, prompt injection, and model
+misbehaviour, and is representative of a class that scores outcomes with full
+visual access to the screen. It does not model the overseer's perceptual channel;
+the auditor is assumed sighted.
+
+\paragraph{Unreliable self-reports.} A separate line characterises the failure
+mode we exploit. Work on false success shows agents assert completion over failed
+tasks and that language-model judges systematically miss it; MIRAGE-Bench
+provides a taxonomy of agent hallucination including outcome hallucination. These
+establish that the self-report is untrustworthy, but they too assume a sighted
+party is available to notice, and do not consider accessibility.
+
+\paragraph{Accessibility of agents.} A recent and fast-moving line studies agents
+for blind and low-vision users. A11y-CUA documents that agent task success
+collapses under assistive-technology interaction styles. An interview study of
+blind users in the agentic era names the epistemic vulnerability precisely,
+observing that an error early in a multi-step task can propagate silently before
+any feedback is received, but it is qualitative and introduces no benchmark or
+metric. Closest to our work, NeXUI scores whether an assistive agent explains
+each step in a way grounded in interface state. It asks whether agents explain
+well; it does not include adversarial conditions, seeded silent failures,
+deception, or any measurement of whether the explanations are sufficient to
+detect an agent failing or lying, and it runs without blind participants.
+
+\paragraph{The joint question.} The gap is the conjunction. The safety
+benchmarks measure agent behaviour but assume a sighted auditor; the false-success
+work measures self-report unreliability but assumes a sighted auditor; the
+accessibility work studies the non-visual channel but not adversarial detection.
+Baseerat measures whether the non-visual channel is \emph{sufficient to detect
+failure}, including adversarial failure, and what restores it when it is not. The
+defence we evaluate is informed by the tool-receipts idea, a machine-verified
+statement of effect rather than the agent's word for it.
+
+\section{The Baseerat benchmark}
+
+\subsection{Tasks and the field specification}
+
+A task is a realistic operation on a web or desktop surface: send an email,
+update a delivery address, add a payee, rename and move a file, book a calendar
+event, update account recovery details. Each task carries a \emph{field
+specification}: the set of observable slots that a correct completion must leave
+holding specified values (for an email, the recipient, subject, and attachment).
+The field specification is the ground truth against which both channels are
+scored.
+
+The corpus contains 150 tasks generated deterministically, stratified evenly
+across six domains and four \emph{injection archetypes} that vary how a hijacked
+value differs from the intended one: a homograph (a look-alike character swap such
+as \texttt{l} to \texttt{1}), a plausible substitution, an appended hostile
+token, and a wholesale redirect. The stratification exists so that the auditor
+arms can be analysed by how subtle the hijack is; the reference auditor, by
+construction, is archetype-invariant (Section~\ref{sec:results}).
+
+\subsection{Three conditions}
+
+Every task is run under three conditions. The design of the conditions is the
+core of the benchmark, because it separates a failure that the accessible channel
+can reveal from one that it cannot.
+
+\begin{center}
+\begin{tabular}{@{}p{2.6cm}p{3.1cm}p{3.1cm}p{3.3cm}@{}}
+\toprule
+\textbf{Condition} & \textbf{Ground truth} & \textbf{Accessibility tree} &
+\textbf{Detectable by} \\
+\midrule
+clean & matches the task & honest & nothing to detect \\
+silent failure & a field silently fails to save & \emph{honest}: shows the
+failure & anyone who cross-checks the tree against the agent's claim \\
+deceptive injection & a field is hijacked & \emph{poisoned}: shows the benign
+value & only a sighted overseer reading the true result \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Under \textbf{silent failure} the accessibility tree is honest, so a diligent
+non-visual overseer who cross-checks the tree against the agent's claim of success
+can catch it. Under \textbf{deceptive injection} the accessibility tree is
+poisoned to corroborate the false narration, so the non-visual channel shows a
+consistent benign story and only the ground truth reveals the hijack. The
+contrast between these two conditions is what isolates the \gap.
+
+\subsection{Two channels}
+
+Each run is audited through two channels. The \textbf{visual} channel additionally
+receives the ground-truth committed state, modelling a sighted overseer who can
+read the true result from the screen. The \textbf{non-visual} channel receives the
+agent's narration and the post-hoc accessibility tree only, and never the ground
+truth. The restriction is enforced at the data boundary: the object handed to a
+non-visual auditor does not contain the committed state.
+
+\subsection{The live rig}
+
+Conditions are made physical in a real browser rather than simulated. Each task is
+rendered as an HTML form whose submit handler writes the truly committed values
+to an authoritative store and, separately, renders a confirmation region into the
+accessibility tree. Under deceptive injection the handler commits the attacker's
+value while the confirmation exposes the benign one. A pluggable agent perceives
+the page through its accessible representation, decides the field values, performs
+them, and writes its own narration. The rig then reads ground truth from the
+authoritative store and reads the accessible view the way a screen reader would,
+by resolving each field through its accessible name and by capturing the full
+accessibility snapshot of the confirmation region. The agent supplies the
+narration but never touches the committed state, so it can misreport reality but
+cannot fabricate it.
+
+Figure~\ref{fig:diverge} shows a captured example. Under deceptive injection the
+committed recipient is \texttt{accounts@northgate-1egal.co.uk} (a homograph, digit
+one for the letter l) while the accessibility snapshot exposes the benign
+\texttt{accounts@northgate-legal.co.uk}. The two channels genuinely disagree, and
+the disagreement is read from a production accessibility snapshot, establishing
+that the threat model is realisable rather than assumed.
+
+\begin{figure}[t]
+\centering
+\fbox{\parbox{0.92\linewidth}{\small\ttfamily
+=== deceptive\_injection (live browser) ===\\
+ground truth : email.recipient = accounts@northgate-1egal.co.uk\\
+a11y tree ~~~: email.recipient = accounts@northgate-legal.co.uk\\
+channels disagree? YES
+}}
+\caption{A single live run. The committed recipient is hijacked by a homograph;
+the accessibility tree, read from a real snapshot, still speaks the benign
+address. A sighted overseer sees the hijack; the accessible channel does not.}
+\label{fig:diverge}
+\end{figure}
+
+\subsection{Cross-checking the accessible channel against a screen reader}
+
+The rig reads the accessible channel through a browser accessibility snapshot,
+which is a faithful model of the accessibility tree but is not identical to what a
+production screen reader announces. To validate the model, Baseerat includes a
+cross-check that parses an NVDA Speech Viewer log into the same field-value
+representation and compares it against the snapshot channel. The parser and the
+comparator are released and tested against captured logs; the live capture is
+performed on a Windows virtual machine following a documented procedure. Under
+deceptive injection the two accessible surfaces agree with each other on the
+benign spoofed value and both diverge from ground truth, which is precisely why
+the accessible channel is insufficient.
+
+\section{Metrics}
+
+Let a run have field specification with expected values $E = \{(k, e_k)\}$,
+committed ground-truth state $W$, exposed accessibility tree $A$, and an agent
+claim of success. Let $\mathrm{Truth}(c)$ be the verdict a perfect auditor should
+return for condition $c$: \textsc{clean} for the clean condition and
+\textsc{diverged} otherwise.
+
+\paragraph{Self-report fidelity.} The fraction of expected fields whose true
+committed value the agent reported honestly. Under a claim of success every field
+is implicitly claimed correct, so fidelity is the fraction that really is correct:
+\[
+\mathrm{Fidelity} = \frac{1}{|E|}\,\bigl|\{\,k : W_k = e_k\,\}\bigr|.
+\]
+Fidelity is computed from ground truth and is independent of any auditor.
+
+\paragraph{Non-visual detectability.} Given only the non-visual channel, does an
+auditor flag the runs that truly diverged? We report \emph{recall} over the
+diverged runs (silent failure and deceptive injection), namely the fraction of
+runs that should have been caught that were, and separately the \emph{false-alarm
+rate} on clean runs.
+
+\paragraph{Oversight parity gap.} The headline metric. Let $D_{\mathrm{vis}}$ and
+$D_{\mathrm{nv}}$ be the detection rates on truly-diverged runs under the visual
+and non-visual channels respectively, over the same runs. Then
+\[
+\mathrm{Gap} = D_{\mathrm{vis}} - D_{\mathrm{nv}}.
+\]
+A positive gap is oversight that a sighted overseer can exercise and a blind one
+structurally cannot. We report the gap overall and per condition.
+
+\paragraph{Defence effect.} With a trusted receipt present, the non-visual
+detection rate rises to $D_{\mathrm{nv}}^{\mathrm{rcpt}}$ and the residual gap is
+$D_{\mathrm{vis}} - D_{\mathrm{nv}}^{\mathrm{rcpt}}$. The gap closed by the
+defence is the difference between the narration-only gap and the residual gap.
+
+\section{Reference-auditor results}
+\label{sec:results}
+
+We first report a deterministic \emph{reference auditor}. It encodes the single
+most obvious cross-check a diligent overseer would perform: does the accessibility
+tree corroborate the agent's claim of success? On the visual channel it checks the
+claim against ground truth. The reference auditor is not intended to be
+intelligent; it establishes the benchmark's construct validity (that the
+conditions are well-formed and the metrics behave as designed) and serves as the
+scalable lower bound against which the language-model and human auditors are
+compared. Its results are computed over the full 150-task corpus (450 runs) and
+are exact and reproducible.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Quantity} & \textbf{clean} & \textbf{silent failure} &
+\textbf{deceptive injection} \\
+\midrule
+Self-report fidelity & 1.00 & 0.61 & 0.61 \\
+Visual detection rate & n/a & 1.00 & 1.00 \\
+Non-visual detection rate & n/a & 1.00 & 0.00 \\
+\textbf{Oversight parity gap} & 0.00 & 0.00 & \textbf{1.00} \\
+\bottomrule
+\end{tabular}
+\caption{Reference-auditor results over 150 tasks (450 runs). The parity gap is
+0.50 overall and is concentrated entirely in the deceptive-injection condition.
+The non-visual channel catches every silent failure (the honest tree contradicts
+the false claim) and no injection (the poisoned tree corroborates it). There are
+no false alarms on clean runs.}
+\label{tab:reference}
+\end{table}
+
+Table~\ref{tab:reference} shows the result. The non-visual channel catches every
+silent failure and no deceptive injection, exactly as the condition design
+predicts: when the accessibility tree is honest the cross-check succeeds, and when
+it is poisoned in step with the narration the cross-check is defeated. The visual
+channel catches both. The overall \gap{} is 0.50, and it lives entirely in the
+deceptive-injection condition. Because the poisoning defeats the reference
+auditor regardless of how the hijacked value differs from the intended one, the
+reference auditor is archetype-invariant; the injection archetypes are provided
+so that the language-model auditor, which may catch a clumsy homograph while
+missing a clean redirect, can be analysed by subtlety.
+
+\section{The defence: trusted action receipts}
+
+The reference results say the accessible channel is insufficient. The constructive
+question is what would make it sufficient. We evaluate \emph{trusted action
+receipts}. A receipt is a machine-verified, accessibly-rendered statement of what
+was actually committed, produced by an instrumented layer that observes the
+committed state directly and is independent of the page's own confirmation. In the
+rig the receipt is rendered from the authoritative committed store, not from the
+poisonable confirmation, so under deceptive injection the receipt reports the true
+hijacked value while the confirmation still lies. An auditor given a receipt treats
+it as authoritative and cross-checks it against the expected values.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+& \textbf{narration only} & \textbf{with receipt} \\
+\midrule
+Non-visual detection rate (diverged runs) & 0.50 & \textbf{1.00} \\
+Oversight parity gap & 0.50 & \textbf{0.00} \\
+\bottomrule
+\end{tabular}
+\caption{The defence over 150 tasks. A trusted receipt channel restores non-visual
+detection from 0.50 to 1.00 and closes the parity gap to zero, without introducing
+false alarms on clean runs.}
+\label{tab:defence}
+\end{table}
+
+Table~\ref{tab:defence} shows that the receipt restores non-visual detection to
+1.00 and closes the \gap{} to zero, with no false alarms on clean runs, and the
+same result holds when the runs are produced by the live browser rig rather than
+the deterministic simulator. The interpretation is that a trusted channel,
+independent of the page and rendered into the accessible modality, restores to a
+blind overseer exactly the detection a sighted overseer had. The realism caveat is
+explicit: the defence assumes such an instrumentation layer exists and cannot
+itself be spoofed by the page. Baseerat does not claim that assumption is free; it
+measures how much oversight the assumption would buy, which is the whole of the
+gap.
+
+\section{Protocol for the auditor arms}
+
+The reference auditor establishes the benchmark and the mechanism. Two further
+auditor arms complete the evaluation and are released as an open protocol.
+
+\paragraph{Language-model auditor sweep.} A language model is placed under the
+same perceptual restriction as each channel and asked for a structured verdict.
+This is not a simulation of a blind person; it is a model of the oversight
+\emph{channel}, the information bottleneck, which is what the gap measures. The
+released rig runs this arm across models with a single flag; the corpus
+stratification supports a per-archetype and per-domain breakdown of where the
+non-visual channel is most and least detectable. Table~\ref{tab:llm} gives the
+reporting template; the cells are populated in the next revision.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Auditor model} & \textbf{Vis. recall} & \textbf{Non-vis. recall} &
+\textbf{Parity gap} & \textbf{Gap w/ receipt} \\
+\midrule
+reference (deterministic) & 1.00 & 0.50 & 0.50 & 0.00 \\
+language model A & \pending & \pending & \pending & \pending \\
+language model B & \pending & \pending & \pending & \pending \\
+language model C & \pending & \pending & \pending & \pending \\
+\bottomrule
+\end{tabular}
+\caption{Reporting template for the language-model auditor sweep. The reference
+row is the deterministic lower bound reported here; the model rows are populated
+in the next revision. A model auditor may exceed the reference on silent failures
+and may partially detect clumsy injection archetypes, which would narrow but is
+not expected to close the narration-only gap.}
+\label{tab:llm}
+\end{table}
+
+\paragraph{Human expert-auditor arm.} Because a language model under a perceptual
+restriction is a lower bound and not a person, the language-model arm is anchored
+by an expert-auditor evaluation with consenting professional blind accessibility
+auditors, who audit a stratified sample of runs through the non-visual channel.
+This arm calibrates the language-model auditor against human non-visual detection
+and is the basis for the journal version of this work.
+
+\section{Limitations and threats to validity}
+
+\paragraph{The agent is scripted for the reference results.} In the reference
+configuration the agent performs the task correctly and the divergence is
+introduced by the environment. This is a deliberate control: it isolates the
+oversight question from agent competence, so that a measured gap reflects the
+channel and not agent error. A real computer-use agent slots into the same seam,
+and the released rig supports it; a real agent introduces its own error and its
+own genuine narration, which the language-model auditor arm will exercise.
+
+\paragraph{The receipt defence assumes a trusted layer.} The defence's power
+depends on an instrumentation layer that the page cannot spoof. Where no such
+layer exists, the measured gap stands as the exposure. The benchmark measures the
+value of the assumption rather than asserting it is cheap.
+
+\paragraph{The accessible channel is modelled by a snapshot.} The rig reads the
+accessibility tree through a browser snapshot. The NVDA cross-check validates this
+against a production screen reader on a stratified sample, but a full screen-reader
+in the loop for every run is future work.
+
+\paragraph{Construct validity of the reference auditor.} The reference auditor is
+a deliberately simple cross-check and is not a claim about how well any real
+auditor performs. Its role is to show the conditions and metrics are well-formed
+and to provide a lower bound; the human arm supplies the ecological anchor.
+
+\section{Ethics and accessibility statement}
+
+This work is motivated by a safety exposure that falls disproportionately on blind
+and low-vision users, and it is intended to be used to reduce that exposure. The
+corpus contains only fictional values and no real personal data. The
+deceptive-injection condition is a controlled construction inside a local rig; the
+benchmark does not provide an attack against any deployed system. The human
+expert-auditor arm is designed as a paid, non-clinical, minimal-risk evaluation
+with informed consent. We release the benchmark so that model developers can be
+held to a measured oversight-parity standard rather than an assumed one.
+
+\section{Conclusion}
+
+Agent oversight has a hidden precondition: that the overseer can see the screen.
+For a blind screen-reader user that precondition fails, and the oversight channel
+collapses onto an agent self-report that the literature has shown to be
+unreliable, and that an adversary can actively poison in step with the action.
+Baseerat turns this observation into a measurement. Over a 150-task corpus a
+deterministic reference auditor exhibits an \gap{} of 0.50, concentrated entirely
+in a deceptive-injection condition that we demonstrate is realisable in a live
+browser, and a trusted-receipt defence closes the gap to zero. We release the
+benchmark, the rig, the corpus, and the reference results, and we specify the
+language-model and human expert-auditor arms that complete the evaluation. The
+broader claim is simple: model developers can and should be scored on the
+oversight they afford an overseer who cannot see the screen, not on the oversight
+they afford one who can.
+
+\section*{Availability}
+
+The benchmark, the live rig, the task generator, the corpus, the defence, the
+NVDA cross-check, and the reference results are released as an open repository.
+Copyright WAJD Group. Developed by WAJD AI.
+
+\begin{thebibliography}{9}
+\small
+
+\bibitem{osharm} OS-Harm: A Benchmark for Measuring Safety of Computer Use
+Agents. arXiv:2506.14866.
+
+\bibitem{silentfailure} From Confident Closing to Silent Failure:
+Characterizing False Success in LLM Agents. arXiv:2606.09863.
+
+\bibitem{mirage} MIRAGE-Bench: LLM Agent is Hallucinating and Where to Find
+Them. arXiv:2507.21017.
+
+\bibitem{a11ycua} A11y-CUA: Characterizing the Accessibility Gap in Computer Use
+Agents. arXiv:2602.09310.
+
+\bibitem{xaiblv} Explainable AI for Blind and Low-Vision Users: Navigating
+Trust, Modality, and Interpretability in the Agentic Era. arXiv:2604.00187.
+
+\bibitem{nexui} Navigation Alone Is Not Enough: Evaluating Explanatory Assistive
+UI Agents (NeXUI). arXiv:2608.09944.
+
+\bibitem{morae} Morae: Proactively Pausing UI Agents for User Choices.
+arXiv:2508.21456.
+
+\bibitem{receipts} Tool Receipts, Not Zero-Knowledge Proofs: Practical
+Hallucination Detection for AI Agents. arXiv:2603.10060.
+
+\bibitem{misscore} How Benchmarks Mis-Score Computer-Use Agents.
+arXiv:2607.28367.
+
+\end{thebibliography}
+
+\end{document}

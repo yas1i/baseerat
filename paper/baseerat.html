@@ -1,0 +1,313 @@
+<title>Baseerat (paper)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper: #FAF9F6;
+    --card: #FFFFFF;
+    --ink: #1F242B;
+    --muted: #5C6570;
+    --faint: #8A929C;
+    --line: #DDD9D0;
+    --accent: #0E6B64;
+    --accent-soft: #E3EFED;
+    --amber: #A85D0C;
+    --amber-soft: #F6EBDD;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #16191E;
+      --card: #1D2127;
+      --ink: #E8E6E1;
+      --muted: #9AA3AD;
+      --faint: #6B7480;
+      --line: #333942;
+      --accent: #4FB3A9;
+      --accent-soft: #1E2E2C;
+      --amber: #D99A54;
+      --amber-soft: #2E2620;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #16191E; --card: #1D2127; --ink: #E8E6E1; --muted: #9AA3AD;
+    --faint: #6B7480; --line: #333942; --accent: #4FB3A9; --accent-soft: #1E2E2C;
+    --amber: #D99A54; --amber-soft: #2E2620;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Serif", Georgia, serif;
+    font-size: 16.5px; line-height: 1.62; margin: 0; padding: 0 20px 90px;
+  }
+  .page { max-width: 730px; margin: 0 auto; }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  a:hover { border-bottom-color: var(--accent); }
+
+  header { padding: 60px 0 30px; border-bottom: 2px solid var(--ink); text-align: center; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 20px;
+  }
+  h1 {
+    font-weight: 600; font-size: clamp(26px, 4.4vw, 34px); line-height: 1.22;
+    margin: 0 0 18px; text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .authors { font-size: 16px; color: var(--ink); margin: 0 0 4px; }
+  .affil { font-family: "IBM Plex Sans", sans-serif; font-size: 13.5px; color: var(--muted); margin: 2px 0; }
+  .pubmeta {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--faint);
+    margin-top: 12px;
+  }
+
+  .abstract {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 22px 26px; margin: 34px 0 10px;
+  }
+  .abstract .lbl {
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 10px;
+  }
+  .abstract p { margin: 0; font-size: 15.5px; line-height: 1.6; }
+
+  h2 {
+    font-family: "IBM Plex Sans", sans-serif; font-weight: 600; font-size: 20px;
+    margin: 46px 0 4px; padding-top: 8px; text-wrap: balance;
+  }
+  h2 .n {
+    font-family: "IBM Plex Mono", monospace; font-size: 14px; color: var(--accent);
+    margin-right: 10px;
+  }
+  h3 {
+    font-family: "IBM Plex Sans", sans-serif; font-weight: 600; font-size: 15.5px;
+    margin: 26px 0 6px; color: var(--ink);
+  }
+  p { margin: 13px 0; }
+  .lead { font-size: 17px; }
+
+  ol.contrib { margin: 14px 0; padding-left: 22px; }
+  ol.contrib li { margin: 10px 0; }
+  ol.contrib b { font-family: "IBM Plex Sans", sans-serif; font-weight: 600; }
+
+  .tablewrap { overflow-x: auto; margin: 24px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 520px;
+          font-family: "IBM Plex Sans", sans-serif; font-size: 13.5px; }
+  caption {
+    caption-side: bottom; text-align: left; font-size: 13px; color: var(--muted);
+    line-height: 1.5; padding-top: 10px; font-family: "IBM Plex Sans", sans-serif;
+  }
+  caption b { color: var(--ink); font-weight: 600; }
+  th {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); font-weight: 500;
+    text-align: right; padding: 9px 14px; border-bottom: 2px solid var(--ink);
+  }
+  th:first-child { text-align: left; }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--line); text-align: right;
+       font-variant-numeric: tabular-nums; }
+  td:first-child { text-align: left; font-weight: 500; }
+  tr:last-child td { border-bottom: 2px solid var(--ink); }
+  .hl { color: var(--amber); font-weight: 600; }
+  .pending { color: var(--faint); font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+  .refrow td { border-bottom: 1px solid var(--line); }
+
+  .figure {
+    background: var(--ink); color: var(--paper); border-radius: 6px;
+    padding: 20px 24px; margin: 26px 0; font-family: "IBM Plex Mono", monospace;
+    font-size: 13px; line-height: 1.7; overflow-x: auto;
+  }
+  .figure .fline { white-space: pre; }
+  .figure .hijack { color: #E4A96B; }
+  .figure .benign { color: #7FD0C6; }
+  .figcaption { font-family: "IBM Plex Sans", sans-serif; font-size: 13px;
+                color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
+
+  .conditions {
+    width: 100%; border-collapse: collapse; margin: 22px 0; min-width: 520px;
+    font-family: "IBM Plex Sans", sans-serif; font-size: 13px;
+  }
+  .conditions th { text-align: left; }
+  .conditions td { text-align: left; vertical-align: top; line-height: 1.45; }
+  .tag { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; }
+  .tag.clean { color: var(--accent); }
+  .tag.sf { color: var(--muted); }
+  .tag.di { color: var(--amber); }
+
+  .eq {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 14px 20px; margin: 16px 0; text-align: center;
+    font-family: "IBM Plex Mono", monospace; font-size: 15px; color: var(--ink);
+    overflow-x: auto;
+  }
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    padding: 14px 20px; margin: 22px 0; border-radius: 0 6px 6px 0;
+  }
+  .callout p { margin: 0; font-size: 15px; }
+
+  .refs { font-family: "IBM Plex Sans", sans-serif; font-size: 13.5px; counter-reset: r; list-style: none; padding: 0; }
+  .refs li { margin: 10px 0; padding-left: 34px; position: relative; line-height: 1.5; }
+  .refs li::before {
+    counter-increment: r; content: "[" counter(r) "]"; position: absolute; left: 0;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent);
+  }
+  .refs .id { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted); }
+
+  footer {
+    margin-top: 54px; padding-top: 22px; border-top: 1px solid var(--line);
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--faint);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  .note {
+    font-family: "IBM Plex Sans", sans-serif; font-size: 12.5px; color: var(--faint);
+    text-align: center; margin: 6px 0 0;
+  }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Preprint · AI safety × accessibility</p>
+    <h1>Baseerat: Measuring the Oversight Gap When a Computer-Use Agent's Overseer Cannot See the Screen</h1>
+    <p class="authors">[Author name]</p>
+    <p class="affil">WAJD AI · baseerat@wajd.co.uk</p>
+    <p class="pubmeta">Preprint draft · August 2026 · reference-auditor results final; auditor arms pending</p>
+  </header>
+
+  <div class="abstract">
+    <span class="lbl">Abstract</span>
+    <p>Safety benchmarks for computer-use agents evaluate an agent's behaviour under the tacit assumption that the human overseer can see the screen. For the roughly forty million people who operate a computer through a screen reader, that assumption does not hold: the only account of what an agent did arrives through the agent's narration and the post-hoc accessibility tree, and a growing body of work shows that an agent's own account of its actions is unreliable, with claimed success exceeding actual success by large margins. We introduce <em>Baseerat</em>, a benchmark that pairs each task with a matched sighted control and measures the <b>oversight parity gap</b>: the detection rate a sighted overseer achieves on a diverged agent run minus the rate an overseer restricted to the accessible channel achieves on the same run. Baseerat runs tasks in a real browser under three conditions (clean, silent failure, and a deceptive indirect injection that poisons the accessibility tree in step with the agent's narration). Over a 150-task corpus a deterministic reference auditor exhibits a parity gap of 0.50, concentrated entirely in the deceptive-injection condition, which we demonstrate is realisable in a live browser. A trusted-receipt defence closes the gap to zero. We release the benchmark, the rig, the corpus, and the reference results, and specify the language-model and human expert-auditor arms.</p>
+  </div>
+
+  <h2><span class="n">1</span>Introduction</h2>
+  <p class="lead">Computer-use agents now act on real interfaces on a person's behalf: they fill forms, send messages, move money, and change settings. The safety of these agents is increasingly benchmarked, but the benchmarks share an unstated premise. When they score whether an agent completed a task correctly, resisted a prompt injection, or avoided a harmful action, the ground truth is read from the screen, and the implicit overseer who would catch a failure is assumed able to read the screen too.</p>
+  <p>For a blind screen-reader user that premise fails. The overseer does not see the result; they hear the agent's narration and, if they inspect the outcome, they read whatever the accessibility tree exposes. The oversight channel collapses onto the agent's own account of what it did. This would be manageable if that account were reliable. It is not: recent work characterises <em>false success</em>, in which agents produce confident closure over tasks that in fact failed, and <em>outcome hallucination</em>, in which an agent claims completion despite contrary evidence, with claimed-to-actual success ratios reported as high as 5.3 times.</p>
+  <p>Together these imply a vulnerability neither literature measures. If the accessible channel is the whole of a blind user's oversight, and that channel carries an unreliable self-report, then the agent's safety for that user reduces to the fidelity of the self-report and to whether the accessible channel is rich enough to reveal a discrepancy when the self-report is wrong. The adversarial case is worse than the accidental one: in an indirect injection the attacker controls page content, and nothing stops the injection from also instructing the agent to narrate a clean, benign account of a hijacked action, so that the attack and its cover story travel down the very channel the blind user depends on.</p>
+
+  <h3>Contributions</h3>
+  <ol class="contrib">
+    <li><b>A problem formulation and a metric.</b> We frame agent oversight as a detection task over a restricted perceptual channel and define the <em>oversight parity gap</em>, alongside self-report fidelity and non-visual detectability.</li>
+    <li><b>A live benchmark.</b> Tasks run in a real browser; the deceptive-injection condition is built in an actual document object model so the accessibility tree exposes a benign value while the committed state is hijacked.</li>
+    <li><b>Reference results and construct validity.</b> A deterministic reference auditor over a 150-task corpus yields a parity gap of 0.50, entirely within the deceptive-injection condition, with no false alarms on clean runs.</li>
+    <li><b>A defence and its evaluation.</b> Trusted action receipts restore non-visual detection from 0.50 to 1.00 and close the gap to zero.</li>
+    <li><b>An open protocol</b> for the language-model auditor sweep and the human expert-auditor study.</li>
+  </ol>
+  <p>The name <em>Baseerat</em> (from the Arabic <em>baseerah</em>, "inner sight", discernment) marks the point: the question is not whether an overseer has eyes, but whether the channel they are given carries enough to discern a failure.</p>
+
+  <h2><span class="n">2</span>Related work and positioning</h2>
+  <p>Baseerat sits at the intersection of three lines of work, each of which supplies one ingredient and none of which occupies the joint question.</p>
+  <p><b>Safety benchmarks for computer-use agents</b> such as OS-Harm [1] evaluate misuse, injection, and misbehaviour, but score outcomes with full visual access; the auditor is assumed sighted. <b>Unreliable self-reports</b> are characterised by work on false success [2] and hallucination taxonomies such as MIRAGE-Bench [3], which establish the self-report is untrustworthy but still assume a sighted party notices. <b>Accessibility of agents</b> is studied by A11y-CUA [4], which documents that agent success collapses under assistive-technology interaction; by an interview study [5] that names the epistemic vulnerability qualitatively but introduces no benchmark; and, closest to us, by NeXUI [6], which scores whether an assistive agent explains each step, but without adversarial conditions, seeded failures, deception, or any measurement of whether the explanations are sufficient to catch an agent failing or lying.</p>
+  <div class="callout"><p><b>The joint question is the conjunction.</b> Safety benchmarks measure agent behaviour but assume a sighted auditor; the false-success work measures self-report unreliability but assumes a sighted auditor; the accessibility work studies the non-visual channel but not adversarial detection. Baseerat measures whether the non-visual channel is sufficient to detect failure, including adversarial failure, and what restores it when it is not. The defence draws on the tool-receipts idea [8]: a machine-verified statement of effect, not the agent's word for it.</p></div>
+
+  <h2><span class="n">3</span>The Baseerat benchmark</h2>
+  <h3>Tasks and the field specification</h3>
+  <p>A task is a realistic operation on a web or desktop surface. Each carries a <em>field specification</em>: the observable slots a correct completion must leave holding specified values (for an email, the recipient, subject, and attachment). This is the ground truth against which both channels are scored. The corpus contains 150 deterministically generated tasks, stratified evenly across six domains and four <em>injection archetypes</em> (homograph, plausible substitution, appended token, wholesale redirect), so the auditor arms can be analysed by how subtle the hijack is.</p>
+
+  <h3>Three conditions</h3>
+  <div class="tablewrap">
+    <table class="conditions">
+      <thead><tr><th>Condition</th><th>Ground truth</th><th>Accessibility tree</th><th>Detectable by</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag clean">clean</span></td><td>matches the task</td><td>honest</td><td>nothing to detect</td></tr>
+        <tr><td><span class="tag sf">silent failure</span></td><td>a field silently fails to save</td><td><em>honest</em>: shows the failure</td><td>anyone who cross-checks the tree against the claim</td></tr>
+        <tr><td><span class="tag di">deceptive injection</span></td><td>a field is hijacked</td><td><em>poisoned</em>: shows the benign value</td><td>only a sighted overseer reading the true result</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Under <b>silent failure</b> the tree is honest, so a diligent non-visual overseer who cross-checks it against the claim of success catches the failure. Under <b>deceptive injection</b> the tree is poisoned to corroborate the false narration, so only ground truth reveals the hijack. The contrast between these two conditions isolates the gap.</p>
+
+  <h3>Two channels and the live rig</h3>
+  <p>The <b>visual</b> channel additionally receives the ground-truth committed state; the <b>non-visual</b> channel receives the narration and the accessibility tree only, never ground truth, enforced at the data boundary. Conditions are made physical in a real browser: each task renders as an HTML form whose submit handler writes the truly committed values to an authoritative store and, separately, renders a confirmation into the accessibility tree. A pluggable agent perceives the page through its accessible representation, decides the values, acts, and writes its own narration. The rig reads ground truth from the store and reads the accessible view the way a screen reader would. The agent supplies the narration but never touches the committed state.</p>
+
+  <div class="figure">
+    <div class="fline">=== deceptive_injection (live browser) ===</div>
+    <div class="fline">ground truth : email.recipient = <span class="hijack">accounts@northgate-1egal.co.uk</span></div>
+    <div class="fline">a11y tree    : email.recipient = <span class="benign">accounts@northgate-legal.co.uk</span></div>
+    <div class="fline">channels disagree? YES</div>
+  </div>
+  <p class="figcaption"><b>Figure 1.</b> A single live run. The committed recipient is hijacked by a homograph (digit one for the letter l); the accessibility tree, read from a real snapshot, still speaks the benign address. A sighted overseer sees the hijack; the accessible channel does not. This establishes the threat model is realisable, not assumed.</p>
+
+  <h3>Cross-checking against a screen reader</h3>
+  <p>The rig reads the accessible channel through a browser accessibility snapshot, a faithful model of the tree but not identical to what a screen reader announces. Baseerat includes a cross-check that parses an NVDA Speech Viewer log into the same field-value representation and compares it against the snapshot channel; parser and comparator are released and tested against captured logs, with the live capture performed on a Windows VM. Under deceptive injection the two accessible surfaces agree with each other on the benign spoofed value and both diverge from ground truth, which is precisely why the accessible channel is insufficient.</p>
+
+  <h2><span class="n">4</span>Metrics</h2>
+  <p><b>Self-report fidelity.</b> Under a claim of success every field is implicitly claimed correct, so fidelity is the fraction that really is correct in ground truth. It is computed from ground truth and is independent of any auditor.</p>
+  <p><b>Non-visual detectability.</b> Given only the non-visual channel, the recall over truly-diverged runs (the fraction that should have been caught that were), plus the false-alarm rate on clean runs.</p>
+  <p><b>Oversight parity gap.</b> The headline metric: the visual detection rate minus the non-visual detection rate on the same diverged runs.</p>
+  <div class="eq">Gap = D<sub>visual</sub> &minus; D<sub>non-visual</sub></div>
+  <p>A positive gap is oversight a sighted overseer can exercise and a blind one structurally cannot. <b>Defence effect</b> is the difference between the narration-only gap and the residual gap once a trusted receipt is present.</p>
+
+  <h2><span class="n">5</span>Reference-auditor results</h2>
+  <p>We first report a deterministic <em>reference auditor</em> encoding the single most obvious cross-check: does the accessibility tree corroborate the agent's claim of success? It is not intended to be intelligent; it establishes construct validity (the conditions are well-formed, the metrics behave as designed) and serves as the scalable lower bound for the language-model and human arms. Results are exact and reproducible over the full 150-task corpus (450 runs).</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Quantity</th><th>clean</th><th>silent failure</th><th>deceptive injection</th></tr></thead>
+      <tbody>
+        <tr><td>Self-report fidelity</td><td>1.00</td><td>0.61</td><td>0.61</td></tr>
+        <tr><td>Visual detection rate</td><td>n/a</td><td>1.00</td><td>1.00</td></tr>
+        <tr><td>Non-visual detection rate</td><td>n/a</td><td>1.00</td><td>0.00</td></tr>
+        <tr><td>Oversight parity gap</td><td>0.00</td><td>0.00</td><td class="hl">1.00</td></tr>
+      </tbody>
+      <caption><b>Table 1.</b> Reference-auditor results over 150 tasks (450 runs). The parity gap is 0.50 overall and concentrated entirely in the deceptive-injection condition. The non-visual channel catches every silent failure (the honest tree contradicts the false claim) and no injection (the poisoned tree corroborates it). No false alarms on clean runs.</caption>
+    </table>
+  </div>
+  <p>The non-visual channel catches every silent failure and no deceptive injection, exactly as the condition design predicts. Because the poisoning defeats the reference auditor regardless of how the hijacked value differs from the intended one, the reference auditor is archetype-invariant; the archetypes are provided so the language-model auditor, which may catch a clumsy homograph while missing a clean redirect, can be analysed by subtlety.</p>
+
+  <h2><span class="n">6</span>The defence: trusted action receipts</h2>
+  <p>The reference results say the accessible channel is insufficient. The constructive question is what makes it sufficient. A <em>trusted action receipt</em> is a machine-verified, accessibly-rendered statement of what was actually committed, produced by an instrumented layer independent of the page's own confirmation. In the rig the receipt is rendered from the authoritative committed store, so under deceptive injection it reports the true hijacked value while the confirmation still lies. An auditor given a receipt treats it as authoritative.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>narration only</th><th>with receipt</th></tr></thead>
+      <tbody>
+        <tr><td>Non-visual detection (diverged runs)</td><td>0.50</td><td class="hl">1.00</td></tr>
+        <tr><td>Oversight parity gap</td><td>0.50</td><td class="hl">0.00</td></tr>
+      </tbody>
+      <caption><b>Table 2.</b> The defence over 150 tasks. A trusted receipt channel restores non-visual detection from 0.50 to 1.00 and closes the parity gap to zero, without false alarms on clean runs. The same result holds on the live browser rig.</caption>
+    </table>
+  </div>
+  <p>A trusted channel, independent of the page and rendered into the accessible modality, restores to a blind overseer exactly the detection a sighted overseer had. The realism caveat is explicit: the defence assumes such an instrumentation layer exists and cannot itself be spoofed by the page. Baseerat does not claim that assumption is free; it measures how much oversight the assumption would buy, which is the whole of the gap.</p>
+
+  <h2><span class="n">7</span>Protocol for the auditor arms</h2>
+  <p>The reference auditor establishes the benchmark and the mechanism. Two further arms complete the evaluation and are released as an open protocol. The <b>language-model auditor</b> is placed under the same perceptual restriction as each channel and asked for a structured verdict: not a simulation of a blind person, but a model of the oversight channel, the information bottleneck the gap measures. The released rig runs this arm across models with a single flag.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Auditor model</th><th>Vis. recall</th><th>Non-vis. recall</th><th>Parity gap</th><th>Gap w/ receipt</th></tr></thead>
+      <tbody>
+        <tr class="refrow"><td>reference (deterministic)</td><td>1.00</td><td>0.50</td><td>0.50</td><td>0.00</td></tr>
+        <tr><td>language model A</td><td class="pending">pending</td><td class="pending">pending</td><td class="pending">pending</td><td class="pending">pending</td></tr>
+        <tr><td>language model B</td><td class="pending">pending</td><td class="pending">pending</td><td class="pending">pending</td><td class="pending">pending</td></tr>
+        <tr><td>language model C</td><td class="pending">pending</td><td class="pending">pending</td><td class="pending">pending</td><td class="pending">pending</td></tr>
+      </tbody>
+      <caption><b>Table 3.</b> Reporting template for the language-model auditor sweep. The reference row is the deterministic lower bound reported here; model rows are populated in the next revision. A model auditor may exceed the reference on silent failures and partially detect clumsy injection archetypes, which would narrow but is not expected to close the narration-only gap.</caption>
+    </table>
+  </div>
+  <p>The <b>human expert-auditor arm</b> anchors the language-model arm with consenting professional blind accessibility auditors, who audit a stratified sample of runs through the non-visual channel. This calibrates the language-model auditor against human non-visual detection and is the basis for the journal version.</p>
+
+  <h2><span class="n">8</span>Limitations and threats to validity</h2>
+  <p><b>The agent is scripted for the reference results.</b> The agent performs the task correctly and the divergence is introduced by the environment. This is a deliberate control: a measured gap reflects the channel, not agent competence. A real computer-use agent slots into the same seam, and the released rig supports it.</p>
+  <p><b>The receipt defence assumes a trusted layer.</b> Where no unspoofable instrumentation layer exists, the measured gap stands as the exposure. The benchmark measures the value of the assumption, not that it is cheap.</p>
+  <p><b>The accessible channel is modelled by a snapshot.</b> The NVDA cross-check validates this against a production screen reader on a stratified sample; a full screen-reader in the loop for every run is future work.</p>
+
+  <h2><span class="n">9</span>Ethics and accessibility statement</h2>
+  <p>This work is motivated by a safety exposure that falls disproportionately on blind and low-vision users and is intended to reduce it. The corpus contains only fictional values and no real personal data. The deceptive-injection condition is a controlled construction inside a local rig and provides no attack against any deployed system. The human expert-auditor arm is designed as a paid, non-clinical, minimal-risk evaluation with informed consent. We release the benchmark so model developers can be held to a measured oversight-parity standard rather than an assumed one.</p>
+
+  <h2><span class="n">10</span>Conclusion</h2>
+  <p>Agent oversight has a hidden precondition: that the overseer can see the screen. For a blind screen-reader user that precondition fails, and the oversight channel collapses onto an agent self-report the literature has shown to be unreliable, and that an adversary can actively poison in step with the action. Baseerat turns this into a measurement: over a 150-task corpus a deterministic reference auditor exhibits a parity gap of 0.50, concentrated entirely in a deceptive-injection condition realisable in a live browser, and a trusted-receipt defence closes it to zero. The broader claim is simple: model developers can and should be scored on the oversight they afford an overseer who cannot see the screen, not on the oversight they afford one who can.</p>
+
+  <h2><span class="n">11</span>References</h2>
+  <ol class="refs">
+    <li>OS-Harm: A Benchmark for Measuring Safety of Computer Use Agents. <span class="id">arXiv:2506.14866</span></li>
+    <li>From Confident Closing to Silent Failure: Characterizing False Success in LLM Agents. <span class="id">arXiv:2606.09863</span></li>
+    <li>MIRAGE-Bench: LLM Agent is Hallucinating and Where to Find Them. <span class="id">arXiv:2507.21017</span></li>
+    <li>A11y-CUA: Characterizing the Accessibility Gap in Computer Use Agents. <span class="id">arXiv:2602.09310</span></li>
+    <li>Explainable AI for Blind and Low-Vision Users: Navigating Trust, Modality, and Interpretability in the Agentic Era. <span class="id">arXiv:2604.00187</span></li>
+    <li>Navigation Alone Is Not Enough: Evaluating Explanatory Assistive UI Agents (NeXUI). <span class="id">arXiv:2608.09944</span></li>
+    <li>Morae: Proactively Pausing UI Agents for User Choices. <span class="id">arXiv:2508.21456</span></li>
+    <li>Tool Receipts, Not Zero-Knowledge Proofs: Practical Hallucination Detection for AI Agents. <span class="id">arXiv:2603.10060</span></li>
+    <li>How Benchmarks Mis-Score Computer-Use Agents. <span class="id">arXiv:2607.28367</span></li>
+  </ol>
+
+  <p class="note">Reference-auditor and defence results are final and reproducible. Language-model and human expert-auditor rows are pending and populated in the next revision. No results are fabricated.</p>
+
+  <footer>
+    <span>Baseerat · WAJD AI · copyright WAJD Group</span>
+    <span>Preprint draft, August 2026</span>
+  </footer>
+</div>
