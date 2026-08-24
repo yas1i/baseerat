@@ -53,6 +53,8 @@ _AUTH_HINT = (
     "\n[auth] The API key was rejected (401 invalid x-api-key). The key that IS "
     "set is not a valid one. Check that ANTHROPIC_API_KEY:\n"
     "  - is a real key that starts with 'sk-ant-'\n"
+    "  - was exported WITHOUT a leading '$' (export ANTHROPIC_API_KEY='sk-ant-...',\n"
+    "    not export ANTHROPIC_API_KEY=$sk-ant-...; the '$' makes the shell eat it)\n"
     "  - has no surrounding quotes, spaces, or a trailing '...' placeholder\n"
     "  - is active (not revoked) and has credit\n"
     "Test it directly:\n"
