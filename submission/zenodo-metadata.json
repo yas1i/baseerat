@@ -1,0 +1,37 @@
+{
+  "_comment": "Fill-in values for a Zenodo preprint deposit. Copy each field into the Zenodo 'New upload' form, or use the Zenodo REST API with this as the deposition metadata. Upload paper/baseerat.pdf as the file.",
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "title": "Baseerat: Measuring the Oversight Gap When a Computer-Use Agent's Overseer Cannot See the Screen",
+  "creators": [
+    {
+      "name": "Musawar, Yasir",
+      "affiliation": "WAJD AI",
+      "orcid": "REPLACE-WITH-ORCID-OR-DELETE-THIS-LINE"
+    }
+  ],
+  "description": "Safety benchmarks for computer-use agents evaluate an agent's behaviour under the tacit assumption that the human overseer can see the screen. For the roughly forty million people who operate a computer through a screen reader, that assumption does not hold: the only account of what an agent did arrives through the agent's narration and the post-hoc accessibility tree, and a growing body of work shows that an agent's own account of its actions is unreliable, with claimed success exceeding actual success by large margins. We introduce Baseerat, a benchmark that pairs each task with a matched sighted control and measures the oversight parity gap: the detection rate a sighted overseer achieves on a diverged agent run minus the rate an overseer restricted to the accessible channel achieves on the same run. Baseerat runs tasks in a real browser under three conditions (clean, silent failure, and a deceptive indirect injection that poisons the accessibility tree in step with the agent's narration). Over a 150-task corpus a deterministic reference auditor exhibits a parity gap of 0.50, concentrated entirely in the deceptive-injection condition, which we demonstrate is realisable in a live browser. A trusted-receipt defence closes the gap to zero. We release the benchmark, the rig, the corpus, and the reference results, and specify the language-model and human expert-auditor arms. This is a preprint draft: the reference-auditor and defence results are final; the language-model and human expert-auditor arms are pending.",
+  "keywords": [
+    "computer-use agents",
+    "AI safety",
+    "accessibility",
+    "screen readers",
+    "blind and low-vision users",
+    "prompt injection",
+    "agent oversight",
+    "benchmark",
+    "human oversight",
+    "assistive technology"
+  ],
+  "language": "eng",
+  "license": "cc-by-4.0",
+  "notes": "Reference-auditor and defence results are final and reproducible. Language-model and human expert-auditor rows are pending and populated in the next revision. No results are fabricated. Copyright WAJD Group. Developed by WAJD AI.",
+  "related_identifiers": [
+    {
+      "_comment": "Add this only after the GitHub repo is made public.",
+      "relation": "isSupplementedBy",
+      "identifier": "https://github.com/yas1i/baseerat",
+      "resource_type": "software"
+    }
+  ]
+}
