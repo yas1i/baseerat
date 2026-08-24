@@ -15,7 +15,15 @@ Deliverables in this repo:
 
 ---
 
-## Route 3: preprint deposit (do first, secures the date today)
+## Route 3: preprint deposit (DONE)
+
+Published on Zenodo, 24 August 2026:
+[doi:10.5281/zenodo.22080740](https://doi.org/10.5281/zenodo.22080740). Priority
+date secured. When the language-model results are added, upload the rebuilt PDF
+as a new version of the same Zenodo record (this preserves the concept DOI and
+adds a version DOI). Steps for reference below.
+
+## Route 3 steps (for the version-2 upload)
 
 A DOI-minting preprint server needs no endorsement and stamps the claim with a
 fixed date. Two good options; Zenodo is the simplest.

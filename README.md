@@ -19,6 +19,21 @@ cannot exercise. Nobody has reported it.
 
 WAJD AI · copyright WAJD Group.
 
+## Citation
+
+Preprint archived at [doi:10.5281/zenodo.22080740](https://doi.org/10.5281/zenodo.22080740).
+
+```bibtex
+@misc{musawar2026baseerat,
+  title  = {Baseerat: Measuring the Oversight Gap When a Computer-Use Agent's Overseer Cannot See the Screen},
+  author = {Musawar, Yasir},
+  year   = {2026},
+  doi    = {10.5281/zenodo.22080740},
+  url    = {https://doi.org/10.5281/zenodo.22080740},
+  note   = {Preprint. WAJD AI}
+}
+```
+
 ---
 
 ## What is here (Weeks 1-6)
