@@ -146,6 +146,20 @@ def main() -> None:
                     help="after a successful fill, commit (as WAJD AI) and push dev")
     args = ap.parse_args()
 
+    # Preflight: show whether THIS shell can see a key, without revealing it.
+    import os
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    if key:
+        print(f"[preflight] ANTHROPIC_API_KEY visible in this shell: yes "
+              f"(starts '{key[:7]}', length {len(key)})")
+        if not key.startswith("sk-ant-"):
+            print("[preflight] WARNING: the value does not start with 'sk-ant-'. "
+                  "Likely exported with a stray '$' or wrong value.")
+    else:
+        print("[preflight] ANTHROPIC_API_KEY is NOT set in this shell. Export it "
+              "in THIS terminal tab (export ANTHROPIC_API_KEY='sk-ant-...') and "
+              "re-run. An export in another tab does not carry over.")
+
     rows = _sweep(args.models, str(ROOT / args.tasks))
     if not rows:
         print("\nNo model rows were produced (no credentials, or all runs fell "
