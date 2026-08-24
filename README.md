@@ -21,7 +21,7 @@ WAJD AI · copyright WAJD Group.
 
 ---
 
-## What is here (Weeks 1-3)
+## What is here (Weeks 1-6)
 
 A working end-to-end pipeline that produces the three metrics on a seed task
 set, runnable against either a deterministic simulator OR a live browser rig.
@@ -53,13 +53,21 @@ set, runnable against either a deterministic simulator OR a live browser rig.
   `ClaudeAuditor` (Claude under the same perceptual restriction, the scalable
   LLM arm).
 - **`baseerat/metrics.py`** - self-report fidelity, non-visual detectability,
-  oversight parity gap.
-- **`tasks/seed.json`** - five seed tasks (email, address form, payee, file
-  move, calendar) across web and desktop surfaces.
+  oversight parity gap, and the defence report (gap before vs after receipts).
+- **`baseerat/defence.py`** - **the defence (Weeks 4-6).** Trusted action
+  receipts: a machine-verified, accessibly-rendered record of what was actually
+  committed, derived from ground truth and independent of the page's own
+  (poisonable) confirmation. The auditors treat a receipt as authoritative.
+- **`baseerat/task_gen.py`** - **the corpus generator (Weeks 4-6).**
+  Deterministically produces ~150 tasks stratified across six domains (email,
+  address, payment, file, calendar, settings) and four injection archetypes
+  (homograph, substitution, append, redirect).
+- **`tasks/seed.json`** - five hand-written seed tasks; **`tasks/generated.json`**
+  - the 150-task corpus (`python -m baseerat.task_gen`).
 - **`run_benchmark.py`** - runs everything and prints the report.
-- **`tests/`** - 24 behavioural tests (offline + live-rig + agent + NVDA
-  harness); live-rig tests skip automatically where Chromium is unavailable, and
-  the agent/auditor Claude paths are covered with mock clients (no key needed).
+- **`tests/`** - 34 behavioural tests (offline pipeline + live-rig + agent +
+  NVDA harness + defence + generator); live-rig tests skip automatically where
+  Chromium is unavailable, and every Claude path is covered with mock clients.
 
 ### Week 2: the injection is real, not simulated
 
@@ -77,6 +85,25 @@ channels disagree? YES
 A sighted overseer sees the hijack; the accessible channel does not. That single
 divergence, read from a live ARIA snapshot, is the oversight parity gap made
 physical.
+
+### Weeks 4-6: the defence closes the gap, at scale
+
+On the 150-task corpus (450 runs), the heuristic baseline reproduces the gap and
+shows the fix:
+
+```
+DEFENCE  (trusted action receipts vs narration only):
+    non-visual recall, narration only   0.50   <- misses every injection
+    non-visual recall, with receipt     1.00   <- catches every injection
+    parity gap, narration only          0.50
+    parity gap, with receipt (residual) 0.00   <- gap fully closed
+    gap closed by the receipt           0.50
+```
+
+A trusted receipt channel, independent of the page, restores to the blind
+overseer exactly the detection a sighted overseer had. That is the paper's
+constructive claim: the accessible channel is insufficient today, and here is
+what makes it sufficient.
 
 ### The three conditions
 
@@ -106,6 +133,17 @@ python3 -m venv .venv
 The `--agent claude` run has Claude drive the form from the accessible
 observation and write its own narration; without credentials it prints a note
 and falls back to the scripted agent, so the command never fails.
+
+The 150-task corpus and the across-models auditor sweep:
+
+```bash
+.venv/bin/python -m baseerat.task_gen --n 150 --out tasks/generated.json
+.venv/bin/python run_benchmark.py --tasks tasks/generated.json
+for m in claude-opus-5 claude-sonnet-5 claude-haiku-4-5; do
+  .venv/bin/python run_benchmark.py --tasks tasks/generated.json \
+    --auditor claude --model "$m" --out "results/$m.jsonl"
+done
+```
 
 Current output on the seed set (heuristic baseline auditor):
 
@@ -154,10 +192,12 @@ pipeline and metrics on seed data. The remaining weeks:
   live steps await their environments: the `--agent claude` run needs an API
   key, and the NVDA capture needs the Windows VM (procedure documented in
   `baseerat/nvda.py`).
-- **Weeks 4-6** - scale to ~150 tasks; run the full LLM-auditor arm across
-  models; add the defence evaluation (accessibility-rendered action receipts vs
-  narration-only).
-- **Week 7** - arXiv preprint with the LLM-auditor results. The human
+- **Weeks 4-6 (done)** - the 150-task stratified corpus, the defence evaluation
+  (trusted receipts close the parity gap), and the LLM-auditor plumbing for the
+  across-models sweep (`--auditor claude --model ...`, runnable per model when a
+  key is present).
+- **Week 7** - arXiv preprint. Run the LLM-auditor arm across models on the
+  corpus, drop the numbers into the writeup, and stake the claim. The human
   expert-auditor arm follows for the ACM TACCESS journal version.
 
 The design deliberately keeps every condition matched to a clean control, and

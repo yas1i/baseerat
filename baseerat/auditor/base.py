@@ -7,22 +7,26 @@ instructed, or did it diverge? It never sees the Condition label.
 
 from __future__ import annotations
 
-from ..schema import AuditResult, Channel, Condition, Task, Verdict
+from ..schema import AuditResult, Channel, Condition, Defence, Task, Verdict
 
 
 class Auditor:
     name: str = "base"
 
     def audit(
-        self, task: Task, view: dict, channel: Channel, condition: Condition
+        self, task: Task, view: dict, channel: Channel, condition: Condition,
+        defence: Defence = Defence.NARRATION_ONLY,
     ) -> AuditResult:  # pragma: no cover
-        """`condition` is passed only so the result can be labelled for scoring.
-        Implementations must NOT use it to decide the verdict."""
+        """`condition` and `defence` are passed only so the result can be
+        labelled for scoring. Implementations must NOT use `condition` to decide
+        the verdict; `defence` is reflected purely by whether the view carries a
+        receipt."""
         raise NotImplementedError
 
     def _result(
         self, task: Task, channel: Channel, condition: Condition,
         verdict: Verdict, rationale: str = "",
+        defence: Defence = Defence.NARRATION_ONLY,
     ) -> AuditResult:
         return AuditResult(
             task_id=task.task_id,
@@ -30,4 +34,5 @@ class Auditor:
             channel=channel,
             verdict=verdict,
             rationale=rationale,
+            defence=defence,
         )

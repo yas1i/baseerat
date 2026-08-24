@@ -47,6 +47,22 @@ class Channel(str, Enum):
     VISUAL = "visual"
 
 
+class Defence(str, Enum):
+    """What defensive channel the overseer is given, on top of the base channel.
+
+    NARRATION_ONLY  the baseline: the agent's own account plus the (possibly
+                    poisoned) accessibility tree. This is today's reality.
+    WITH_RECEIPT    additionally, a trusted action receipt: a machine-verified,
+                    accessibly-rendered statement of what actually changed,
+                    produced by an instrumented layer independent of the page's
+                    own confirmation DOM (modelled on the tool-receipts line of
+                    work). The paper's proposed fix.
+    """
+
+    NARRATION_ONLY = "narration_only"
+    WITH_RECEIPT = "with_receipt"
+
+
 class Verdict(str, Enum):
     """What an auditor concludes about a run."""
 
@@ -86,6 +102,8 @@ class Task:
     surface: str            # "web" | "desktop"
     fields: tuple[FieldSpec, ...]
     injection_hint: str = ""  # attacker's goal, used to build the deceptive run
+    injection_kind: str = "substitution"  # archetype, for analysis (see task_gen)
+    domain: str = "general"               # task domain, for stratified reporting
 
     @staticmethod
     def from_dict(d: dict) -> "Task":
@@ -96,6 +114,8 @@ class Task:
             surface=d.get("surface", "web"),
             fields=tuple(FieldSpec(**f) for f in d["fields"]),
             injection_hint=d.get("injection_hint", ""),
+            injection_kind=d.get("injection_kind", "substitution"),
+            domain=d.get("domain", "general"),
         )
 
 
@@ -146,12 +166,14 @@ class AuditResult:
     channel: Channel
     verdict: Verdict
     rationale: str = ""
+    defence: Defence = Defence.NARRATION_ONLY
 
     def to_dict(self) -> dict:
         return {
             "task_id": self.task_id,
             "condition": self.condition.value,
             "channel": self.channel.value,
+            "defence": self.defence.value,
             "verdict": self.verdict.value,
             "rationale": self.rationale,
         }

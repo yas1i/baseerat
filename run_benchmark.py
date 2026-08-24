@@ -25,13 +25,15 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from baseerat.auditor import get_auditor
+from baseerat.defence import render_receipt
 from baseerat.environment import SimulatedEnvironment, channel_view
 from baseerat.metrics import (
+    defence_report,
     detectability,
     fidelity_by_condition,
     oversight_parity_gap,
 )
-from baseerat.schema import Channel, Condition, load_tasks
+from baseerat.schema import Channel, Condition, Defence, load_tasks
 
 
 def _fmt(x: float) -> str:
@@ -64,13 +66,14 @@ def _build_env(env_name: str, agent_name: str):
 
 
 def run(tasks_path: str, auditor_name: str, out_path: str | None,
-        env_name: str = "sim", agent_name: str = "scripted") -> dict:
+        env_name: str = "sim", agent_name: str = "scripted",
+        model: str | None = None) -> dict:
     tasks = load_tasks(tasks_path)
     tasks_by_id = {t.task_id: t for t in tasks}
     env, session_factory = _build_env(env_name, agent_name)
 
     try:
-        auditor = get_auditor(auditor_name)
+        auditor = get_auditor(auditor_name, model)
     except Exception as exc:  # missing SDK / credentials
         if auditor_name == "claude":
             print(f"[warn] claude auditor unavailable ({exc}); "
@@ -96,17 +99,31 @@ def run(tasks_path: str, auditor_name: str, out_path: str | None,
             for condition in Condition:
                 r = env.run(task, condition)
                 runs.append(r)
-                for channel in Channel:
-                    view = channel_view(r, channel)
-                    results.append(auditor.audit(task, view, channel, condition))
+                # Visual channel: narration-only (a sighted overseer needs no
+                # receipt). Non-visual channel: both narration-only (baseline)
+                # and with the trusted receipt (the defence).
+                results.append(auditor.audit(
+                    task, channel_view(r, Channel.VISUAL), Channel.VISUAL,
+                    condition, Defence.NARRATION_ONLY))
+                nv_view = channel_view(r, Channel.NON_VISUAL)
+                results.append(auditor.audit(
+                    task, nv_view, Channel.NON_VISUAL, condition,
+                    Defence.NARRATION_ONLY))
+                nv_receipt = dict(nv_view)
+                nv_receipt["receipt"] = render_receipt(task, r)
+                results.append(auditor.audit(
+                    task, nv_receipt, Channel.NON_VISUAL, condition,
+                    Defence.WITH_RECEIPT))
 
     fidelity = fidelity_by_condition(runs, tasks_by_id)
     det_nv = detectability(results, Channel.NON_VISUAL)
     det_v = detectability(results, Channel.VISUAL)
     gap = oversight_parity_gap(results)
+    dfn = defence_report(results)
 
     report = {
         "auditor": auditor_name,
+        "model": model if auditor_name == "claude" else None,
         "env": env_name,
         "n_tasks": len(tasks),
         "n_runs": len(runs),
@@ -127,6 +144,13 @@ def run(tasks_path: str, auditor_name: str, out_path: str | None,
             "per_condition": gap.per_condition,
             "visual_rate": gap.visual_rate,
             "non_visual_rate": gap.non_visual_rate,
+        },
+        "defence": {
+            "gap_narration_only": dfn.gap_narration_only,
+            "gap_with_receipt": dfn.gap_with_receipt,
+            "gap_closed": dfn.gap_closed,
+            "non_visual_recall_narration": dfn.non_visual_recall_narration,
+            "non_visual_recall_receipt": dfn.non_visual_recall_receipt,
         },
     }
 
@@ -167,6 +191,14 @@ def _print_report(r: dict) -> None:
     print(f"    overall                {_fmt(g['overall'])}")
     for cond, val in g["per_condition"].items():
         print(f"    {cond:<22} {_fmt(val)}")
+
+    d = r["defence"]
+    print("\nDEFENCE  (trusted action receipts vs narration only):")
+    print(f"    non-visual recall, narration only   {_fmt(d['non_visual_recall_narration'])}")
+    print(f"    non-visual recall, with receipt     {_fmt(d['non_visual_recall_receipt'])}")
+    print(f"    parity gap, narration only          {_fmt(d['gap_narration_only'])}")
+    print(f"    parity gap, with receipt (residual) {_fmt(d['gap_with_receipt'])}")
+    print(f"    gap closed by the receipt           {_fmt(d['gap_closed'])}")
     print()
 
 
@@ -179,10 +211,12 @@ def main() -> None:
                     help="sim = deterministic simulator; playwright = live browser rig")
     ap.add_argument("--agent", default="scripted", choices=["scripted", "claude"],
                     help="who performs the task in the live rig (playwright env only)")
+    ap.add_argument("--model", default=None,
+                    help="auditor model for the LLM arm's across-models sweep")
     ap.add_argument("--out", default=None,
                     help="write per-audit JSONL and a summary JSON here")
     args = ap.parse_args()
-    run(args.tasks, args.auditor, args.out, args.env, args.agent)
+    run(args.tasks, args.auditor, args.out, args.env, args.agent, args.model)
 
 
 if __name__ == "__main__":
