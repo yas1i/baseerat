@@ -38,6 +38,7 @@ from run_benchmark import run  # noqa: E402
 TEX = ROOT / "paper" / "baseerat.tex"
 ACMART = ROOT / "paper" / "baseerat-acmart.tex"   # TACCESS submission format
 HTML = ROOT / "paper" / "baseerat.html"
+STORE = ROOT / "paper" / "table3_data.json"       # canonical merged results
 
 TEX_START = "% TABLE3-ROWS-START"
 TEX_END = "% TABLE3-ROWS-END"
@@ -130,6 +131,25 @@ def _html_rows(rows) -> str:
     return "\n".join(lines)
 
 
+def _merge_store(new_rows: list[dict]) -> list[dict]:
+    """Merge this run's rows into the canonical store so re-running one model
+    ADDS or UPDATES its row without wiping rows from earlier runs. Returns the
+    full ordered list of all model rows recorded so far."""
+    import json
+    store = []
+    if STORE.exists():
+        store = json.loads(STORE.read_text(encoding="utf-8"))
+    by_model = {r["model"]: r for r in store}
+    order = [r["model"] for r in store]
+    for r in new_rows:
+        if r["model"] not in by_model:
+            order.append(r["model"])
+        by_model[r["model"]] = r
+    merged = [by_model[m] for m in order]
+    STORE.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+    return merged
+
+
 def _replace_block(text: str, start: str, end: str, new: str) -> str:
     pattern = re.compile(re.escape(start) + r".*?" + re.escape(end), re.DOTALL)
     if not pattern.search(text):
@@ -185,21 +205,25 @@ def main() -> None:
               "fabricated. Set ANTHROPIC_API_KEY and re-run.")
         return
 
+    # Merge into the canonical store so this run's models are added to (not
+    # substituted for) rows already recorded by earlier runs.
+    merged = _merge_store(rows)
+
     for tex_path in (TEX, ACMART):
         if tex_path.exists():
             tex = tex_path.read_text(encoding="utf-8")
             tex_path.write_text(
-                _replace_block(tex, TEX_START, TEX_END, _tex_rows(rows)),
+                _replace_block(tex, TEX_START, TEX_END, _tex_rows(merged)),
                 encoding="utf-8")
     html = HTML.read_text(encoding="utf-8")
     # Rebuild the HTML block boundary to include the closing marker precisely.
     html_new = re.sub(
         re.escape(HTML_START) + r".*?" + re.escape(HTML_END),
-        _html_rows(rows).replace("\\", "\\\\"), html, count=1, flags=re.DOTALL)
+        _html_rows(merged).replace("\\", "\\\\"), html, count=1, flags=re.DOTALL)
     HTML.write_text(html_new, encoding="utf-8")
 
-    print(f"\nFilled Table 3 with {len(rows)} real model row(s) in "
-          f"{TEX.name} and {HTML.name}.")
+    print(f"\nUpdated Table 3: {len(rows)} model(s) this run, "
+          f"{len(merged)} total rows now in {TEX.name}, {ACMART.name}, {HTML.name}.")
     import subprocess
     try:
         subprocess.run([sys.executable, str(ROOT / "paper" / "build_pdf.py")],
@@ -215,7 +239,8 @@ def main() -> None:
         try:
             subprocess.run(["git", "-C", str(ROOT), "add",
                             "paper/baseerat.tex", "paper/baseerat-acmart.tex",
-                            "paper/baseerat.html", "paper/baseerat.pdf"], check=True)
+                            "paper/baseerat.html", "paper/baseerat.pdf",
+                            "paper/table3_data.json"], check=True)
             subprocess.run(["git", "-C", str(ROOT),
                             "-c", "user.name=WAJD AI",
                             "-c", "user.email=yasir.musawar@gmail.com",
