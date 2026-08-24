@@ -146,6 +146,11 @@ def main() -> None:
                     help="after a successful fill, commit (as WAJD AI) and push dev")
     args = ap.parse_args()
 
+    # Load .env (repo root) so a key set there is picked up without exporting it
+    # in each terminal tab. A real exported env var still wins.
+    from baseerat.dotenv import load_dotenv
+    load_dotenv()
+
     # Preflight: show whether THIS shell can see a key, without revealing it.
     import os
     key = os.environ.get("ANTHROPIC_API_KEY")

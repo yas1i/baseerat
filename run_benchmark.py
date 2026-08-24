@@ -26,6 +26,7 @@ from pathlib import Path
 
 from baseerat.auditor import get_auditor
 from baseerat.defence import render_receipt
+from baseerat.dotenv import load_dotenv
 from baseerat.environment import SimulatedEnvironment, channel_view
 from baseerat.metrics import (
     defence_report,
@@ -34,6 +35,8 @@ from baseerat.metrics import (
     oversight_parity_gap,
 )
 from baseerat.schema import Channel, Condition, Defence, load_tasks
+
+load_dotenv()  # pick up ANTHROPIC_API_KEY from a repo-root .env if present
 
 
 def _fmt(x: float) -> str:
